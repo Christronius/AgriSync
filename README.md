@@ -5,5 +5,5 @@ cd agrisync
 npm install
 npm start
 
-open expo go ver sdk 51
+open expo go ver sdk 51 on mobile
 https://expo.dev/changelog/2024-05-07-sdk-51
