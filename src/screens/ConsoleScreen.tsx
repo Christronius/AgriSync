@@ -12,7 +12,7 @@ import { apiClient } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 
 export function ConsoleScreen({ navigation }: any) {
-  const { logout } = useAuth();
+  const { user } = useAuth();
   const { data: fieldsData, loading: loadingFields } = useData(() => apiClient.getFields());
   const { data: herdsData, loading: loadingHerds } = useData(() => apiClient.getHerds());
   const { data: notifsData, loading: loadingNotifs } = useData(() => apiClient.getNotifications());
@@ -54,7 +54,7 @@ export function ConsoleScreen({ navigation }: any) {
         title={<Text>AgriSync<Text style={{fontSize: 9, fontWeight: '700', transform: [{ translateY: -12 }]}}>®</Text></Text>}
         gradientColors={[colors.primaryDark, colors.primary, colors.primaryLight]}
         onBell={() => navigation.navigate('Notifications')}
-        onUser={() => logout()}
+        onUser={() => navigation.navigate('AdminPanel')}
         notificationCount={notifications.length}
       />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -142,7 +142,7 @@ export function ConsoleScreen({ navigation }: any) {
 
           <Animated.View entering={FadeInDown.delay(200).springify().damping(18)}>
             <SectionLabel>Economics summary</SectionLabel>
-            <Card onPress={() => navigation.navigate('FinancialReport')}>
+            <Card onPress={() => navigation.navigate('Economics')}>
               <View style={styles.quarterContainer}>
                 <View style={[styles.quarterBlock, { borderRightWidth: 1, borderRightColor: colors.line, paddingRight: 16 }]}>
                   <Text style={styles.quarterTitle}>Q1 Performance</Text>

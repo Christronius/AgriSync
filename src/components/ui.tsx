@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { colors } from '../theme/theme';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, withRepeat, withSequence, withDelay } from 'react-native-reanimated';
 import { LucideIcon } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -118,6 +118,65 @@ export function ProgressBar({ value, color }: ProgressBarProps) {
   );
 }
 
+export function AIGlow({ children, active = false }: { children: React.ReactNode, active?: boolean }) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.15);
+
+  useEffect(() => {
+    if (active) {
+      scale.value = withRepeat(
+        withSequence(
+          withTiming(1.3, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        ), -1, true
+      );
+      opacity.value = withRepeat(
+        withSequence(
+          withTiming(0.4, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.15, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        ), -1, true
+      );
+    } else {
+      scale.value = withTiming(1, { duration: 500 });
+      opacity.value = withTiming(0, { duration: 500 });
+    }
+  }, [active]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <Animated.View style={[StyleSheet.absoluteFill, styles.glowCore, animatedStyle]} />
+      {children}
+    </View>
+  );
+}
+
+export function PulseDot({ color = colors.bad, size = 12 }: { color?: string, size?: number }) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.8);
+
+  useEffect(() => {
+    scale.value = withRepeat(withTiming(2.5, { duration: 2000, easing: Easing.out(Easing.ease) }), -1, false);
+    opacity.value = withRepeat(withTiming(0, { duration: 2000, easing: Easing.out(Easing.ease) }), -1, false);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <Animated.View style={[{ width: size, height: size, borderRadius: size/2, backgroundColor: color, position: 'absolute' }, animatedStyle]} />
+      <View style={{ width: size * 0.6, height: size * 0.6, borderRadius: size * 0.3, backgroundColor: color }} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: 'IBMPlexMono',
@@ -171,4 +230,13 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
   },
+  glowCore: {
+    backgroundColor: colors.ai,
+    borderRadius: 999,
+    shadowColor: colors.ai,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 10,
+  }
 });

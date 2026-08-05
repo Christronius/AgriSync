@@ -1,19 +1,41 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, Wheat, Mail, Lock } from 'lucide-react-native';
 import { colors } from '../theme/theme';
 import { useAuth } from '../context/AuthContext';
-import { ActivityIndicator } from 'react-native';
 
 export function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, loading } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { login, signUp } = useAuth();
 
-  const handleLogin = async () => {
-    if (!email) return;
-    await login(email);
+  const handleSubmit = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password.');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    let result;
+    if (isSignUp) {
+      result = await signUp(email, password);
+    } else {
+      result = await login(email, password);
+    }
+    
+    setIsLoading(false);
+    
+    if (result.error) {
+      Alert.alert('Authentication Failed', result.error.message);
+    } else if (isSignUp) {
+      Alert.alert('Success', 'Account created successfully! You can now log in.');
+      setIsSignUp(false); // Switch to login mode
+    }
   };
 
   return (
@@ -34,8 +56,12 @@ export function LoginScreen({ navigation }: any) {
         <View style={styles.formContent}>
           <View>
             <View style={styles.titleArea}>
-              <Text style={styles.title}>Welcome back.</Text>
-              <Text style={styles.subtitle}>Log in to access your digital farm twin and real-time telemetry.</Text>
+              <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome back.'}</Text>
+              <Text style={styles.subtitle}>
+                {isSignUp 
+                  ? 'Sign up to configure your digital farm twin.' 
+                  : 'Log in to access your digital farm twin and real-time telemetry.'}
+              </Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -67,30 +93,45 @@ export function LoginScreen({ navigation }: any) {
                   secureTextEntry
                 />
               </View>
-              <Pressable onPress={() => navigation.navigate('Placeholder', { title: 'Password Recovery' })}>
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </Pressable>
+              {!isSignUp && (
+                <Pressable onPress={() => navigation.navigate('Placeholder', { title: 'Password Recovery' })}>
+                  <Text style={styles.forgotText}>Forgot password?</Text>
+                </Pressable>
+              )}
             </View>
 
             <Pressable 
               style={({ pressed }) => [styles.loginBtn, { transform: [{ scale: pressed ? 0.98 : 1 }] }]}
-              onPress={handleLogin}
-              disabled={loading}
+              onPress={handleSubmit}
+              disabled={isLoading}
             >
-              {loading ? (
+              {isLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.loginBtnText}>Sign In</Text>
+                <Text style={styles.loginBtnText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
               )}
             </Pressable>
 
             <Pressable 
               style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.7 : 1 }]}
-              onPress={() => login('guest@farm.com')}
-              disabled={loading}
+              onPress={() => setIsSignUp(!isSignUp)}
+              disabled={isLoading}
             >
-              <Text style={styles.skipBtnText}>Skip for now</Text>
+              <Text style={styles.skipBtnText}>
+                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+              </Text>
             </Pressable>
+            
+            {/* Developer shortcut for fast testing without needing Supabase configured locally */}
+            {!isSignUp && (
+              <Pressable 
+                style={({ pressed }) => [styles.skipBtn, { opacity: pressed ? 0.7 : 1, marginTop: -4 }]}
+                onPress={() => login('guest@farm.com', 'testpassword')}
+                disabled={isLoading}
+              >
+                <Text style={[styles.skipBtnText, { fontSize: 12 }]}>Bypass (Simulate Login)</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>

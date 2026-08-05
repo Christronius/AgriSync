@@ -3,9 +3,29 @@ export interface SensorData {
   v: number;
 }
 
+export type DeviceProtocol = 'bluetooth' | 'wifi' | 'lorawan';
+export type SignalStrength = 'strong' | 'weak' | 'none';
+
+export interface Device {
+  id: number;
+  name: string;
+  icon: any; // LucideIcon
+  online: boolean;
+  kind: "toggle" | "action" | "status";
+  on?: boolean;
+  actionLabel?: string;
+  protocol: DeviceProtocol;
+  battery: number;
+  signal: SignalStrength;
+  lastSync: string;
+  firmware?: string;
+  location?: string;
+}
+
 export interface YieldPred {
   expected: number;
   lastYear: number;
+  lastMonth?: number;
   unit: string;
 }
 
@@ -24,6 +44,7 @@ export interface TrapData {
   threshold: number;
   level: string;
   data: SensorData[];
+  count?: number;
   recommendation: string;
 }
 

@@ -1,100 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Modal, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, Send, Bot, Camera, Sun, PawPrint, Droplet, Circle, ClipboardList, Lightbulb, Bluetooth, Wifi, Radio, BatteryMedium, BatteryLow, BatteryFull, Signal, SignalLow, SignalZero, ScanSearch, Plus, Thermometer, Gauge, Wind } from 'lucide-react-native';
+import { Sparkles, Send, Bluetooth, ScanSearch, Plus, ClipboardList } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { colors } from '../theme/theme';
-import { SectionLabel, Card, IconBadge, StatusPill } from '../components/ui';
+import { SectionLabel, Card, IconBadge, StatusPill, AIGlow } from '../components/ui';
 import { HeroHeader } from '../components/Header';
 import { useData } from '../hooks/useData';
 import { apiClient } from '../services/apiClient';
-
-type DeviceProtocol = 'bluetooth' | 'wifi' | 'lorawan';
-type SignalStrength = 'strong' | 'weak' | 'none';
-
-type Device = {
-  id: number;
-  name: string;
-  icon: any;
-  online: boolean;
-  kind: "toggle" | "action" | "status";
-  on?: boolean;
-  actionLabel?: string;
-  protocol: DeviceProtocol;
-  battery: number;
-  signal: SignalStrength;
-  lastSync: string;
-  firmware?: string;
-  location?: string;
-};
-
-const protocolMeta: Record<DeviceProtocol, { label: string; Icon: any; color: string; bg: string }> = {
-  bluetooth: { label: 'BLE', Icon: Bluetooth, color: '#5B8DEF', bg: 'rgba(91,141,239,0.14)' },
-  wifi:      { label: 'Wi-Fi', Icon: Wifi, color: colors.primary, bg: colors.primarySoft },
-  lorawan:   { label: 'LoRa', Icon: Radio, color: colors.teal, bg: 'rgba(58,174,146,0.14)' },
-};
-
-function BatteryIndicator({ level }: { level: number }) {
-  const Icon = level > 60 ? BatteryFull : level > 25 ? BatteryMedium : BatteryLow;
-  const color = level > 60 ? colors.good : level > 25 ? colors.warn : colors.bad;
-  return (
-    <View style={s.batteryRow}>
-      <Icon size={14} color={color} />
-      <Text style={[s.batteryText, { color }]}>{level}%</Text>
-    </View>
-  );
-}
-
-function SignalIndicator({ strength }: { strength: SignalStrength }) {
-  const map = {
-    strong: { Icon: Signal, color: colors.good, label: 'Strong' },
-    weak:   { Icon: SignalLow, color: colors.warn, label: 'Weak' },
-    none:   { Icon: SignalZero, color: colors.bad, label: 'None' },
-  };
-  const info = map[strength];
-  return (
-    <View style={s.signalRow}>
-      <info.Icon size={13} color={info.color} />
-      <Text style={[s.signalText, { color: info.color }]}>{info.label}</Text>
-    </View>
-  );
-}
-
-function ProtocolBadge({ protocol }: { protocol: DeviceProtocol }) {
-  const info = protocolMeta[protocol];
-  return (
-    <View style={[s.protocolBadge, { backgroundColor: info.bg }]}>
-      <info.Icon size={10} color={info.color} />
-      <Text style={[s.protocolText, { color: info.color }]}>{info.label}</Text>
-    </View>
-  );
-}
+import { useAssistant } from '../hooks/useAssistant';
+import { DeviceCard } from '../components/assistant/DeviceCard';
+import * as Haptics from 'expo-haptics';
 
 export function AssistantScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<'chat' | 'systems' | 'schedule'>('chat');
+  const scrollViewRef = useRef<ScrollView>(null);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([
-    { role: "ai", text: "Hi! I'm your farm assistant. Ask me about fields, herds, prices, or compliance — or scroll down to see your connected systems and scheduled tasks." },
-  ]);
-  const [typing, setTyping] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const { messages, typing, devices, toggleDevice, handleSend } = useAssistant();
 
-  const [devices, setDevices] = useState<Device[]>([
-    { id: 1, name: "Irrigation Controller", icon: Droplet, online: true, kind: "toggle", on: false, protocol: 'wifi', battery: 100, signal: 'strong', lastSync: '2 min ago', location: 'West Field', firmware: 'v2.1.4' },
-    { id: 2, name: "Irrigation Controller", icon: Droplet, online: true, kind: "toggle", on: true, protocol: 'wifi', battery: 100, signal: 'strong', lastSync: '1 min ago', location: 'South Field', firmware: 'v2.1.4' },
-    { id: 3, name: "Insect Trap Camera", icon: Camera, online: true, kind: "action", actionLabel: "View snapshot", protocol: 'lorawan', battery: 72, signal: 'strong', lastSync: '8 min ago', location: 'West Field', firmware: 'v1.3.0' },
-    { id: 4, name: "Soil Moisture Sensor", icon: Droplet, online: true, kind: "status", protocol: 'bluetooth', battery: 54, signal: 'weak', lastSync: '15 min ago', location: 'East Field' },
-    { id: 5, name: "Weather Station", icon: Wind, online: true, kind: "status", protocol: 'lorawan', battery: 88, signal: 'strong', lastSync: '5 min ago', location: 'Central Hub', firmware: 'v3.0.1' },
-    { id: 6, name: "Temp Sensor – Barn A", icon: Thermometer, online: false, kind: "status", protocol: 'bluetooth', battery: 12, signal: 'none', lastSync: '3 hrs ago', location: 'Barn A' },
-  ]);
-
-  const aiSuggestions = [
-    "Turn on irrigation for West Field",
-    "What's today's wheat price?",
-    "Any APIA deadlines coming up?",
-  ];
-
-  const { data: plansData, loading: loadingPlans } = useData(() => apiClient.getPlans());
+  const { data: plansData } = useData(() => apiClient.getPlans());
   const [scheduledActions, setScheduledActions] = useState<any[]>([]);
 
   React.useEffect(() => {
@@ -102,6 +26,7 @@ export function AssistantScreen({ navigation }: any) {
       setScheduledActions(plansData.filter(p => p.status === 'Scheduled'));
     }
   }, [plansData]);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newTarget, setNewTarget] = useState("");
@@ -124,27 +49,18 @@ export function AssistantScreen({ navigation }: any) {
     setNewDate("");
   }
 
-  function toggleDevice(id: number) {
-    setDevices(prev => prev.map(d => d.id === id ? { ...d, on: !d.on } : d));
-  }
-
-  function handleSend(text?: string) {
-    const q = (text ?? input).trim();
-    if (!q) return;
-    setMessages(m => [...m, { role: "user", text: q }]);
+  const submitChat = () => {
+    if (!input.trim()) return;
+    handleSend(input);
     setInput("");
-    setTyping(true);
-    setTimeout(() => {
-      setMessages(m => [...m, { role: "ai", text: "I'm processing that information right now..." }]);
-      setTyping(false);
-    }, 700);
-  }
+  };
 
   function handleScan() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setScanning(true);
-    // Simulate BLE scan
     setTimeout(() => {
       setScanning(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }, 3000);
   }
 
@@ -160,16 +76,15 @@ export function AssistantScreen({ navigation }: any) {
         WatermarkIcon={Sparkles}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={styles.tabContainer}>
-          <Pressable style={[styles.tabBtn, activeTab === 'chat' && styles.tabBtnActive]} onPress={() => setActiveTab('chat')}>
+          <Pressable style={[styles.tabBtn, activeTab === 'chat' && styles.tabBtnActive]} onPress={() => { setActiveTab('chat'); scrollViewRef.current?.scrollTo({ y: 0, animated: false }); Haptics.selectionAsync(); }}>
             <Text style={[styles.tabText, activeTab === 'chat' && styles.tabTextActive]}>Chat</Text>
           </Pressable>
-          <Pressable style={[styles.tabBtn, activeTab === 'systems' && styles.tabBtnActive]} onPress={() => setActiveTab('systems')}>
+          <Pressable style={[styles.tabBtn, activeTab === 'systems' && styles.tabBtnActive]} onPress={() => { setActiveTab('systems'); scrollViewRef.current?.scrollTo({ y: 0, animated: false }); Haptics.selectionAsync(); }}>
             <Text style={[styles.tabText, activeTab === 'systems' && styles.tabTextActive]}>Systems</Text>
           </Pressable>
-          <Pressable style={[styles.tabBtn, activeTab === 'schedule' && styles.tabBtnActive]} onPress={() => setActiveTab('schedule')}>
+          <Pressable style={[styles.tabBtn, activeTab === 'schedule' && styles.tabBtnActive]} onPress={() => { setActiveTab('schedule'); scrollViewRef.current?.scrollTo({ y: 0, animated: false }); Haptics.selectionAsync(); }}>
             <Text style={[styles.tabText, activeTab === 'schedule' && styles.tabTextActive]}>Schedule</Text>
           </Pressable>
         </View>
@@ -254,40 +169,7 @@ export function AssistantScreen({ navigation }: any) {
               <SectionLabel>Online · {onlineDevices.length} devices</SectionLabel>
               <View style={{ gap: 12, marginBottom: 24 }}>
                 {onlineDevices.map(d => (
-                  <Card key={d.id} style={s.deviceCard}>
-                    <View style={s.deviceTopRow}>
-                      <View style={s.deviceInfo}>
-                        <IconBadge Icon={d.icon} fg={colors.primary} bg={colors.primarySoft} size={36} />
-                        <View style={{ marginLeft: 10, flex: 1 }}>
-                          <Text style={s.dName} numberOfLines={1}>{d.name}</Text>
-                          {d.location && <Text style={s.dLocation}>{d.location}</Text>}
-                        </View>
-                      </View>
-                      <View style={s.deviceActions}>
-                        {d.kind === "toggle" && (
-                          <Pressable onPress={() => toggleDevice(d.id)} style={[styles.switch, d.on ? styles.switchOn : styles.switchOff]}>
-                            <View style={styles.switchKnob} />
-                          </Pressable>
-                        )}
-                        {d.kind === "action" && (
-                          <Pressable style={s.viewBtn} onPress={() => navigation.navigate('Placeholder', { title: d.actionLabel })}>
-                            <Text style={s.viewBtnText}>{d.actionLabel}</Text>
-                          </Pressable>
-                        )}
-                        {d.kind === "status" && (
-                          <View style={s.statusDot}>
-                            <Circle size={8} fill={colors.good} color={colors.good} />
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                    <View style={s.deviceMeta}>
-                      <ProtocolBadge protocol={d.protocol} />
-                      <SignalIndicator strength={d.signal} />
-                      <BatteryIndicator level={d.battery} />
-                      <Text style={s.syncText}>Synced {d.lastSync}</Text>
-                    </View>
-                  </Card>
+                  <DeviceCard key={d.id} d={d} onToggle={toggleDevice} />
                 ))}
               </View>
             </Animated.View>
@@ -298,25 +180,7 @@ export function AssistantScreen({ navigation }: any) {
                 <SectionLabel>Offline · {offlineDevices.length} devices</SectionLabel>
                 <View style={{ gap: 12, marginBottom: 24 }}>
                   {offlineDevices.map(d => (
-                    <Card key={d.id} style={[s.deviceCard, { opacity: 0.7 }]}>
-                      <View style={s.deviceTopRow}>
-                        <View style={s.deviceInfo}>
-                          <IconBadge Icon={d.icon} fg={colors.inkSoft} bg={colors.line} size={36} />
-                          <View style={{ marginLeft: 10, flex: 1 }}>
-                            <Text style={[s.dName, { color: colors.inkSoft }]} numberOfLines={1}>{d.name}</Text>
-                            {d.location && <Text style={s.dLocation}>{d.location}</Text>}
-                          </View>
-                        </View>
-                        <Pressable style={s.reconnectBtn} onPress={() => navigation.navigate('Placeholder', { title: `Reconnect ${d.name}` })}>
-                          <Text style={s.reconnectText}>Reconnect</Text>
-                        </Pressable>
-                      </View>
-                      <View style={s.deviceMeta}>
-                        <ProtocolBadge protocol={d.protocol} />
-                        <BatteryIndicator level={d.battery} />
-                        <Text style={s.syncText}>Last seen {d.lastSync}</Text>
-                      </View>
-                    </Card>
+                    <DeviceCard key={d.id} d={d} />
                   ))}
                 </View>
               </Animated.View>
@@ -375,9 +239,9 @@ export function AssistantScreen({ navigation }: any) {
           onChangeText={setInput}
           placeholder="Ask about a field, herd, price..."
           placeholderTextColor={colors.inkSoft}
-          onSubmitEditing={() => handleSend()}
+          onSubmitEditing={submitChat}
         />
-        <Pressable onPress={() => handleSend()} style={styles.sendBtn}>
+        <Pressable onPress={submitChat} style={styles.sendBtn}>
           <Send size={16} color="#fff" />
         </Pressable>
       </View>
@@ -406,7 +270,6 @@ export function AssistantScreen({ navigation }: any) {
   );
 }
 
-// IoT-specific styles
 const s = StyleSheet.create({
   scanCard: { marginBottom: 24, padding: 16 },
   scanHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
@@ -421,25 +284,6 @@ const s = StyleSheet.create({
   scanStatItem: { flex: 1, alignItems: 'center' },
   scanStatVal: { fontFamily: 'IBMPlexMono-Bold', fontSize: 20, color: colors.ink },
   scanStatLbl: { fontFamily: 'IBMPlexSans', fontSize: 10.5, color: colors.inkSoft, marginTop: 2 },
-  deviceCard: { padding: 14 },
-  deviceTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  deviceInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  deviceActions: { marginLeft: 8 },
-  dName: { fontFamily: 'SpaceGrotesk-Bold', fontSize: 13.5, color: colors.ink },
-  dLocation: { fontFamily: 'IBMPlexMono', fontSize: 10.5, color: colors.inkSoft, marginTop: 2 },
-  deviceMeta: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  protocolBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 999 },
-  protocolText: { fontFamily: 'IBMPlexMono', fontSize: 9.5, fontWeight: '600' },
-  batteryRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  batteryText: { fontFamily: 'IBMPlexMono', fontSize: 10, fontWeight: '600' },
-  signalRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  signalText: { fontFamily: 'IBMPlexMono', fontSize: 10, fontWeight: '600' },
-  syncText: { fontFamily: 'IBMPlexMono', fontSize: 10, color: colors.inkSoft },
-  viewBtn: { backgroundColor: colors.euBlueSoft, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 10 },
-  viewBtnText: { fontFamily: 'IBMPlexMono', fontSize: 10, fontWeight: '600', color: colors.euBlue },
-  statusDot: { padding: 4 },
-  reconnectBtn: { borderWidth: 1, borderColor: colors.line, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12 },
-  reconnectText: { fontFamily: 'IBMPlexMono', fontSize: 10, fontWeight: '600', color: colors.inkSoft },
   addDeviceBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: colors.aiSoft, borderStyle: 'dashed', borderRadius: 16, paddingVertical: 16, marginBottom: 24 },
   addDeviceText: { fontFamily: 'IBMPlexSans-SemiBold', fontSize: 14, color: colors.ai },
 });
@@ -459,7 +303,7 @@ const styles = StyleSheet.create({
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, width: '100%' },
   msgUser: { justifyContent: 'flex-end' },
   msgAi: { justifyContent: 'flex-start' },
-  aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.ai, alignItems: 'center', justifyContent: 'center' },
+  aiAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.ai, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   msgBubble: { maxWidth: '80%', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 18 },
   bubbleUser: { backgroundColor: colors.primary, borderBottomRightRadius: 4 },
   bubbleAi: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderBottomLeftRadius: 4 },
@@ -467,12 +311,6 @@ const styles = StyleSheet.create({
   msgTextUser: { color: '#fff' },
   msgTextAi: { color: colors.ink },
 
-  // Devices
-  switch: { width: 44, height: 26, borderRadius: 999, padding: 2, justifyContent: 'center' },
-  switchOn: { backgroundColor: colors.good, alignItems: 'flex-end' },
-  switchOff: { backgroundColor: colors.line, alignItems: 'flex-start' },
-  switchKnob: { width: 22, height: 22, borderRadius: 999, backgroundColor: '#fff' },
-  
   // Plans
   list: { flexDirection: 'column', gap: 12, marginBottom: 24 },
   cardSpacing: { paddingVertical: 16, paddingHorizontal: 16 },

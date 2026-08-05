@@ -36,6 +36,7 @@ interface HeroHeaderProps {
   onUser?: () => void;
   notificationCount?: number;
   onBack?: () => void;
+  onAI?: () => void;
 }
 
 export function HeroHeader({

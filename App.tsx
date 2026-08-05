@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { TabNavigator } from './src/navigation/TabNavigator';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { colors } from './src/theme/theme';
+import { OnboardingStack } from './src/navigation/OnboardingStack';
 import * as Font from 'expo-font';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,7 +14,8 @@ import { FieldDetailScreen } from './src/screens/FieldDetailScreen';
 import { HerdDetailScreen } from './src/screens/HerdDetailScreen';
 import { PlaceholderScreen } from './src/screens/PlaceholderScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
-import { FinancialReportScreen } from './src/screens/FinancialReportScreen';
+import { EconomicsScreen } from './src/screens/EconomicsScreen';
+import { AdminPanelScreen } from './src/screens/AdminPanelScreen';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -31,13 +33,19 @@ function NavigationWrapper() {
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false, presentation: 'modal' }}>
         {user ? (
-          <>
-            <RootStack.Screen name="MainTabs" component={TabNavigator} />
-            <RootStack.Screen name="FieldDetail" component={FieldDetailScreen} />
-            <RootStack.Screen name="HerdDetail" component={HerdDetailScreen} />
-            <RootStack.Screen name="FinancialReport" component={FinancialReportScreen} />
-            <RootStack.Screen name="Placeholder" component={PlaceholderScreen} />
-          </>
+          user.setupCompleted ? (
+            <>
+              <RootStack.Screen name="MainTabs" component={TabNavigator} />
+              <RootStack.Screen name="FieldDetail" component={FieldDetailScreen} />
+              <RootStack.Screen name="HerdDetail" component={HerdDetailScreen} />
+              <RootStack.Screen name="Economics" component={EconomicsScreen} />
+              <RootStack.Screen name="AdminPanel" component={AdminPanelScreen} />
+
+              <RootStack.Screen name="Placeholder" component={PlaceholderScreen} />
+            </>
+          ) : (
+            <RootStack.Screen name="OnboardingStack" component={OnboardingStack} />
+          )
         ) : (
           <>
             <RootStack.Screen name="Login" component={LoginScreen} />

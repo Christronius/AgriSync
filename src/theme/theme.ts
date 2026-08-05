@@ -18,6 +18,7 @@ export const colors = {
   good: "#6BE067",
   warn: "#FFC247",
   bad: "#FF6252",
+  badDark: "#A12519",
   badSoft: "rgba(255,98,82,0.16)",
   cream: "#FDF5E6",
   ai: "#A794FF",

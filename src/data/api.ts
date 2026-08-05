@@ -112,8 +112,4 @@ export const notifications = [
     recommendation: "Apply targeted insecticide within 24–48h.", target: "field", targetId: 4 },
   { id: 2, icon: "Bug", level: "bad", text: "Herd B — FEC 610 epg, threshold 400 (barber pole worm)", time: "40 min ago",
     recommendation: "Treat immediately; isolate high-shedding animals.", target: "herd", targetId: 2 },
-  { id: 3, icon: "Droplet", level: "warn", text: "West Field — soil moisture critically low (15%)", time: "1h ago",
-    recommendation: "Prioritize irrigation before any insecticide application.", target: "field", targetId: 4 },
-  { id: 4, icon: "FileText", level: "warn", text: "APIA young-farmer top-up due in 15 days", time: "3h ago",
-    recommendation: "Submit qualification certificate and bank confirmation.", target: "compliance", targetId: 3 },
 ];

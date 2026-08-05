@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable, Keyboard, Platform } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { StackActions } from '@react-navigation/native';
 import { Home, Wheat, PawPrint, Sparkles, TrendingUp, ShieldCheck } from 'lucide-react-native';
 import { colors } from '../theme/theme';
 
@@ -8,7 +9,6 @@ import { ConsoleStack } from './ConsoleStack';
 import { FieldsStack } from './FieldsStack';
 import { HerdStack } from './HerdStack';
 import { ComplianceStack } from './ComplianceStack';
-import { MarketStack } from './MarketStack';
 import * as Haptics from 'expo-haptics';
 
 import { AssistantScreen } from '../screens/AssistantScreen';
@@ -63,6 +63,16 @@ function PremiumTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
+const safePopToTop = (navigation: any, routeName: string) => {
+  const state = navigation.getState();
+  const route = state?.routes?.find((r: any) => r.name === routeName);
+  if (route?.state?.index > 0) {
+    try {
+      navigation.dispatch(StackActions.popToTop());
+    } catch (e) {}
+  }
+};
+
 export function TabNavigator() {
   return (
     <Tab.Navigator
@@ -80,6 +90,9 @@ export function TabNavigator() {
             </View>
           ),
         }}
+        listeners={({ navigation }) => ({
+          blur: () => safePopToTop(navigation, 'ConsoleStack'),
+        })}
       />
       <Tab.Screen 
         name="FieldsStack" 
@@ -91,6 +104,9 @@ export function TabNavigator() {
             </View>
           ),
         }}
+        listeners={({ navigation }) => ({
+          blur: () => safePopToTop(navigation, 'FieldsStack'),
+        })}
       />
       <Tab.Screen 
         name="HerdStack" 
@@ -102,6 +118,9 @@ export function TabNavigator() {
             </View>
           ),
         }}
+        listeners={({ navigation }) => ({
+          blur: () => safePopToTop(navigation, 'HerdStack'),
+        })}
       />
       <Tab.Screen 
         name="Assistant" 
@@ -114,17 +133,7 @@ export function TabNavigator() {
           ),
         }}
       />
-      <Tab.Screen 
-        name="Market" 
-        component={MarketStack} 
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
-              <TrendingUp size={22} color={color} strokeWidth={focused ? 2.5 : 2} />
-            </View>
-          ),
-        }}
-      />
+
       <Tab.Screen 
         name="Compliance" 
         component={ComplianceStack} 
@@ -135,6 +144,9 @@ export function TabNavigator() {
             </View>
           ),
         }}
+        listeners={({ navigation }) => ({
+          blur: () => safePopToTop(navigation, 'ComplianceStack'),
+        })}
       />
     </Tab.Navigator>
   );
